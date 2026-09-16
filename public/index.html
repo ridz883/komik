@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BatCave Comic Reader</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand" onclick="navigateHome()">
+        <span class="logo-icon">🦇</span>
+        <span>BatComics</span>
+      </div>
+      <form class="search-box" onsubmit="handleSearch(event)">
+        <input type="text" id="searchInput" placeholder="Cari komik (Batman, Flash, dll)..." required>
+        <button type="submit">Cari</button>
+      </form>
+    </div>
+  </header>
+
+  <!-- Container Konten Utama -->
+  <main class="container">
+    <div id="loader" class="loader" style="display: none;">
+      <div class="spinner"></div>
+      <p>Sedang memuat data...</p>
+    </div>
+
+    <!-- VIEW 1: KATALOG (Home / Search) -->
+    <section id="catalogView">
+      <h2 id="sectionTitle" class="section-title">Komik Terbaru</h2>
+      <div id="comicGrid" class="comic-grid"></div>
+      <div class="pagination">
+        <button id="prevBtn" onclick="changePage(-1)" disabled>Sebelumnya</button>
+        <span id="pageIndicator">Halaman 1</span>
+        <button id="nextBtn" onclick="changePage(1)">Selanjutnya</button>
+      </div>
+    </section>
+
+    <!-- VIEW 2: DETAIL KOMIK -->
+    <section id="detailView" style="display: none;">
+      <button class="back-btn" onclick="navigateHome()">← Kembali ke Katalog</button>
+      <div class="detail-container">
+        <div class="detail-poster">
+          <img id="detailImg" src="" alt="Poster">
+        </div>
+        <div class="detail-info">
+          <h1 id="detailTitle"></h1>
+          <div class="meta-tags" id="detailTags"></div>
+          <p class="description" id="detailDesc"></p>
+          <div class="meta-list" id="detailMeta"></div>
+        </div>
+      </div>
+
+      <h3 class="section-title" style="margin-top: 30px;">Daftar Chapter</h3>
+      <div id="chapterList" class="chapter-list"></div>
+    </section>
+
+    <!-- VIEW 3: KOMIK READER -->
+    <section id="readerView" style="display: none;">
+      <div class="reader-toolbar">
+        <button class="back-btn" onclick="closeReader()">← Kembali ke Detail Komik</button>
+        <h2 id="readerChapterTitle"></h2>
+      </div>
+      <div id="readerPages" class="reader-pages"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
