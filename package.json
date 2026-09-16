@@ -1,0 +1,12 @@
+{
+  "name": "batcave-comic-web",
+  "version": "1.0.0",
+  "description": "Comic reader website powered by BatCave scraper",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.12"
+  }
+}
