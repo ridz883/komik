@@ -150,12 +150,38 @@ function requestBatCave(targetUrl, options = {}) {
       try {
         response = execSync(buildCmd(), { timeout: 20000, maxBuffer: 20 * 1024 * 1024 }).toString();
       } catch (err2) {
-        throw new Error(`Gagal memuat ulang halaman setelah bypass: ${err2.message}`);
+        throw new Error(`Gagal memuat ulang halaman: ${err2.message}`);
       }
     }
   }
 
   return response;
+}
+
+function parseComicCards($) {
+  const items = [];
+  // Selector komprehensif untuk halaman katalog dan hasil pencarian BatCave
+  $('.readed, .latest.grid-item, article.short, .page__sub, div[class*="item"]').each((_, el) => {
+    const titleEl = $(el).find('.readed__title > a, .latest__title > a, .short__title > a, h3 > a, a[href*="/"]');
+    const imgEl = $(el).find('img');
+
+    let title = decodeHtml(titleEl.first().text());
+    let link = titleEl.first().attr('href') || '';
+    
+    // Validasi link komik
+    if (!link || link.includes('javascript:') || link.includes('/user/') || link.includes('/tags/')) return;
+    if (!link.startsWith('http')) link = `${BASE_URL}${link.startsWith('/') ? '' : '/'}${link}`;
+
+    let thumbnail = imgEl.attr('data-src') || imgEl.attr('src') || '';
+    if (thumbnail && !thumbnail.startsWith('http')) {
+      thumbnail = `${BASE_URL}${thumbnail.startsWith('/') ? '' : '/'}${thumbnail}`;
+    }
+
+    if (title && link && !items.some(x => x.url === link)) {
+      items.push({ title, url: link, thumbnail });
+    }
+  });
+  return items;
 }
 
 async function getChapterImages(newsId, chapterId) {
@@ -182,25 +208,20 @@ async function getChapterImages(newsId, chapterId) {
           image_url: img.startsWith('http') ? img.trim() : `${BASE_URL}${img.trim()}`
         }))
       };
-    } else if (parsed && parsed.error) {
-      throw new Error(`BatCave Reader Error: ${parsed.error}`);
     }
   } catch (err) {
-    throw new Error(`Gagal memproses data gambar chapter: ${err.message}`);
+    throw new Error(`Gagal memproses gambar chapter: ${err.message}`);
   }
 
   throw new Error('Daftar gambar chapter tidak ditemukan.');
 }
 
 module.exports = async (req, res) => {
-  // Support CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   const q = req.query || {};
   const action = String(q.action || 'latest').trim().toLowerCase();
@@ -216,22 +237,7 @@ module.exports = async (req, res) => {
       const target = page > 1 ? `${BASE_URL}/comix/page/${page}/` : `${BASE_URL}/comix/`;
       const html = requestBatCave(target);
       const $ = cheerio.load(html);
-
-      const items = [];
-      $('.readed, #content-load > .latest.grid-item').each((_, el) => {
-        const titleEl = $(el).find('.readed__title > a, .latest__title > a');
-        const imgEl = $(el).find('.readed__img img, .latest__img img');
-        const title = decodeHtml(titleEl.text());
-        let link = titleEl.attr('href') || '';
-        if (link && !link.startsWith('http')) link = `${BASE_URL}${link}`;
-
-        let thumbnail = imgEl.attr('data-src') || imgEl.attr('src') || '';
-        if (thumbnail && !thumbnail.startsWith('http')) thumbnail = `${BASE_URL}${thumbnail}`;
-
-        if (title && link) {
-          items.push({ title, url: link, thumbnail });
-        }
-      });
+      const items = parseComicCards($);
 
       return res.json({
         status: true,
@@ -245,28 +251,11 @@ module.exports = async (req, res) => {
         return res.status(400).json({ status: false, message: 'Parameter query diperlukan' });
       }
 
-      const searchUrl = page > 1
-        ? `${BASE_URL}/search/${encodeURIComponent(query)}/page/${page}/`
-        : `${BASE_URL}/search/${encodeURIComponent(query)}`;
-
-      const html = requestBatCave(searchUrl);
+      // Format URL Search BatCave: /index.php?do=search&subaction=search&story=query
+      const searchTarget = `${BASE_URL}/index.php?do=search&subaction=search&search_start=${page}&full_search=0&result_from=1&story=${encodeURIComponent(query)}`;
+      const html = requestBatCave(searchTarget);
       const $ = cheerio.load(html);
-      const results = [];
-
-      $('.readed, #content-load > .latest.grid-item').each((_, el) => {
-        const titleEl = $(el).find('.readed__title > a, .latest__title > a');
-        const imgEl = $(el).find('.readed__img img, .latest__img img');
-        const title = decodeHtml(titleEl.text());
-        let link = titleEl.attr('href') || '';
-        if (link && !link.startsWith('http')) link = `${BASE_URL}${link}`;
-
-        let thumbnail = imgEl.attr('data-src') || imgEl.attr('src') || '';
-        if (thumbnail && !thumbnail.startsWith('http')) thumbnail = `${BASE_URL}${thumbnail}`;
-
-        if (title && link) {
-          results.push({ title, url: link, thumbnail });
-        }
-      });
+      const results = parseComicCards($);
 
       return res.json({
         status: true,
@@ -284,7 +273,7 @@ module.exports = async (req, res) => {
       const html = requestBatCave(fullUrl);
       const $ = cheerio.load(html);
 
-      const title = decodeHtml($('header.page__header h1').text() || $('title').text());
+      const title = decodeHtml($('header.page__header h1').text() || $('h1').first().text() || $('title').text());
       let thumbnail = $('div.page__poster img').attr('src') || $('div.page__poster img').attr('data-src') || '';
       if (thumbnail && !thumbnail.startsWith('http')) thumbnail = `${BASE_URL}${thumbnail}`;
 
@@ -306,7 +295,7 @@ module.exports = async (req, res) => {
         if (tag) genres.push(tag);
       });
 
-      const description = decodeHtml($('div.page__text').text());
+      const description = decodeHtml($('div.page__text').text() || $('.full-text').text());
 
       let comicId = null;
       let chapters = [];
